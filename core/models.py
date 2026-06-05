@@ -22,6 +22,14 @@ class AudioChunk:
 
 
 @dataclass(frozen=True, slots=True)
+class Utterance:
+    id: str
+    start_time: float
+    end_time: float | None = None
+    audio_start_offset: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class TranscriptSegment:
     text: str
     start_time: float
@@ -29,6 +37,7 @@ class TranscriptSegment:
     is_final: bool = True
     confidence: float = 1.0
     id: str = field(default_factory=lambda: uuid4().hex)
+    utterance_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -2,29 +2,46 @@
 
 from __future__ import annotations
 
+import html
+
 from PySide6.QtCore import Property, QObject, Signal
 
 from core.events import PipelineState, PipelineStateEvent, SubtitleEvent, SubtitleEventType
-from core.models import SubtitleLine
+from core.models import SubtitleLine, SubtitleStatus
 
 
 class SubtitleViewModel(QObject):
-    """Holds subtitle display state; UI widgets bind to its signals."""
+    """Dual-zone subtitle state: white finalized history + gray live partial."""
 
     visible_lines_changed = Signal()
     pipeline_state_changed = Signal()
     status_message_changed = Signal()
 
-    def __init__(self, max_visible_lines: int = 3, parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        max_visible_lines: int = 3,
+        *,
+        history_max_lines: int = 2,
+        final_color: str = "#FFFFFF",
+        partial_color: str = "#9EACB4",
+        parent: QObject | None = None,
+    ) -> None:
         super().__init__(parent)
         self._max_visible_lines = max_visible_lines
-        self._lines: list[SubtitleLine] = []
+        self._history_max_lines = history_max_lines
+        self._final_color = final_color
+        self._partial_color = partial_color
+        self._history_lines: list[str] = []
+        self._live_text = ""
         self._pipeline_state = PipelineState.IDLE
         self._status_message = "就绪"
 
     @Property(list, notify=visible_lines_changed)
     def visible_lines(self) -> list[str]:
-        return [line.translated_text for line in self._lines[-self._max_visible_lines :]]
+        lines = self._history_lines[-self._history_max_lines :]
+        if self._live_text:
+            lines = [*lines, self._live_text]
+        return lines[-self._max_visible_lines :]
 
     @Property(str, notify=pipeline_state_changed)
     def pipeline_state(self) -> str:
@@ -36,18 +53,24 @@ class SubtitleViewModel(QObject):
 
     def on_subtitle_event(self, event: SubtitleEvent) -> None:
         if event.type == SubtitleEventType.CLEAR:
-            self._lines.clear()
-        elif event.type == SubtitleEventType.APPEND and event.line is not None:
-            self._lines.append(event.line)
-            if len(self._lines) > self._max_visible_lines * 2:
-                self._lines = self._lines[-self._max_visible_lines * 2 :]
-        elif event.type == SubtitleEventType.UPDATE and event.line is not None:
-            for index, line in enumerate(self._lines):
-                if line.id == event.line.id:
-                    self._lines[index] = event.line
-                    break
-            else:
-                self._lines.append(event.line)
+            self._history_lines.clear()
+            self._live_text = ""
+            self.visible_lines_changed.emit()
+            return
+
+        if event.line is None:
+            return
+
+        line = event.line
+        text = line.translated_text.strip()
+        if not text:
+            return
+
+        if line.status == SubtitleStatus.FINAL:
+            self._commit_to_history(text)
+            self._live_text = ""
+        else:
+            self._live_text = text
 
         self.visible_lines_changed.emit()
 
@@ -58,10 +81,35 @@ class SubtitleViewModel(QObject):
         self.status_message_changed.emit()
 
     def get_display_text(self) -> str:
-        visible = self._lines[-self._max_visible_lines :]
-        if not visible:
-            return ""
-        return "\n".join(line.translated_text for line in visible)
+        """Plain-text fallback."""
+        parts = self._history_lines[-self._history_max_lines :]
+        if self._live_text:
+            parts = [*parts, self._live_text]
+        return "\n".join(parts[-self._max_visible_lines :])
+
+    def get_display_html(self) -> str:
+        parts: list[str] = []
+        history = self._history_lines[-self._history_max_lines :]
+        if history:
+            parts.append(
+                "<br/>".join(
+                    f'<span style="color:{self._final_color};">{html.escape(line)}</span>'
+                    for line in history
+                )
+            )
+        if self._live_text:
+            parts.append(
+                f'<span style="color:{self._partial_color};">{html.escape(self._live_text)}</span>'
+            )
+        return "<br/>".join(parts)
+
+    def _commit_to_history(self, text: str) -> None:
+        if self._history_lines and self._history_lines[-1] == text:
+            return
+        self._history_lines.append(text)
+        max_keep = max(self._history_max_lines * 2, self._max_visible_lines * 2)
+        if len(self._history_lines) > max_keep:
+            self._history_lines = self._history_lines[-max_keep:]
 
 
 def _state_label(state: PipelineState) -> str:

@@ -25,3 +25,4 @@ include = ["app*", "core*", "ui*", "infrastructure*", "services*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"

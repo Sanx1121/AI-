@@ -6,7 +6,7 @@ import asyncio
 import logging
 
 from core.events import PipelineState, PipelineStateEvent, SubtitleEvent
-from core.pipeline.orchestrator import PipelineOrchestrator
+from infrastructure.config import AppConfig
 from infrastructure.qt_async_bridge import QtAsyncBridge
 from ui.view_models.subtitle_view_model import SubtitleViewModel
 
@@ -19,14 +19,19 @@ class AppController:
         bridge: QtAsyncBridge,
         view_model: SubtitleViewModel,
         *,
-        demo_mode: bool = True,
+        config: AppConfig,
+        orchestrator=None,
     ) -> None:
         self._bridge = bridge
         self._view_model = view_model
-        self._orchestrator = PipelineOrchestrator(
-            on_event=self._handle_pipeline_event,
-            demo_mode=demo_mode,
-        )
+        if orchestrator is None:
+            from app.bootstrap import create_orchestrator
+
+            orchestrator = create_orchestrator(
+                config,
+                on_event=self._handle_pipeline_event,
+            )
+        self._orchestrator = orchestrator
         self._start_task: asyncio.Task[None] | None = None
 
     @property

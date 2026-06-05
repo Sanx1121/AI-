@@ -116,7 +116,7 @@ python -m app
 
 - [x] 架构设计文档
 - [x] Phase 1：项目骨架 + UI 框架
-- [ ] Phase 2：音频采集 + ASR
+- [x] Phase 2：音频采集 + ASR（balanced：Whisper small + VAD partial）
 - [ ] Phase 3：Ollama 翻译 + 字幕联动
 - [ ] Phase 4：稳定性与错误处理
 
