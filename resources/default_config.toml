@@ -1,0 +1,21 @@
+[audio]
+sample_rate = 16000
+channels = 1
+chunk_duration_sec = 2.0
+
+[asr]
+model_size = "base"
+device = "auto"
+compute_type = "default"
+
+[translation]
+ollama_base_url = "http://localhost:11434"
+model_name = "qwen2.5:7b"
+
+[subtitle]
+max_visible_lines = 3
+font_size = 28
+opacity = 0.85
+position = "bottom"
+
+log_level = "INFO"
