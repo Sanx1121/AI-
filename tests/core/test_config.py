@@ -21,6 +21,10 @@ def test_load_default_config():
     assert config.subtitle.font_size == 24
     assert config.subtitle.final_color == "#FFFFFF"
     assert config.subtitle.partial_color == "#9EACB4"
+    assert config.translation.enabled is True
+    assert config.translation.provider == "dashscope_mt"
+    assert config.translation.mode == "final_only"
+    assert config.translation.dashscope_model == "qwen-mt-lite"
 
 
 def test_load_from_resources_file():

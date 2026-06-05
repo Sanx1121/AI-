@@ -14,12 +14,14 @@ from core.pipeline.orchestrator import PipelineOrchestrator
 from core.pipeline.streaming_orchestrator import StreamingPipelineOrchestrator
 from core.pipeline.vad_utterance_processor import VadUtteranceProcessor
 from core.subtitle.subtitle_manager import SubtitleManager
+from core.translation.translation_coordinator import TranslationCoordinator
 from infrastructure.config import AppConfig, load_config
 from infrastructure.logging import setup_logging
 from infrastructure.qt_async_bridge import QtAsyncBridge
 from services.asr.utterance_transcriber import UtteranceTranscriber
 from services.asr.whisper_service import WhisperASRService
 from services.audio.system_capture import SystemAudioCapture
+from services.translation.factory import create_translator
 from services.vad.factory import create_vad
 from ui.main_window import MainWindow
 from ui.subtitle_overlay import SubtitleOverlay
@@ -46,13 +48,21 @@ def create_orchestrator(config: AppConfig, on_event):
         vad=vad,
     )
     audio_source = SystemAudioCapture(config.audio)
+    subtitle_manager = SubtitleManager()
+    translator = create_translator(config.translation)
+    translation = TranslationCoordinator(
+        translator,
+        config.translation,
+        subtitle_manager,
+    )
     return StreamingPipelineOrchestrator(
         on_event=on_event,
         config=config,
         audio_source=audio_source,
         vad_processor=vad_processor,
         utterance_transcriber=transcriber,
-        subtitle_manager=SubtitleManager(),
+        subtitle_manager=subtitle_manager,
+        translation_coordinator=translation if translation.enabled else None,
     )
 
 

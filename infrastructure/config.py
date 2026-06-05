@@ -61,8 +61,18 @@ class UtteranceConfig:
 
 @dataclass(frozen=True, slots=True)
 class TranslationConfig:
-    ollama_base_url: str = "http://localhost:11434"
-    model_name: str = "qwen2.5:7b"
+    enabled: bool = False
+    provider: str = "dashscope_mt"
+    mode: str = "final_only"
+    source_language: str = "en"
+    target_language: str = "zh"
+    dashscope_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+    dashscope_model: str = "qwen-mt-lite"
+    timeout_sec: float = 3.0
+    max_retries: int = 1
+    cache_size: int = 500
+    cache_ttl_sec: int = 3600
+    show_english_in_partial: bool = True
 
 
 @dataclass(frozen=True, slots=True)
@@ -153,10 +163,25 @@ def load_config(path: Path | None = None) -> AppConfig:
             ring_drop_sec=float(utterance.get("ring_drop_sec", 1.0)),
         ),
         translation=TranslationConfig(
-            ollama_base_url=str(
-                translation.get("ollama_base_url", "http://localhost:11434")
+            enabled=bool(translation.get("enabled", False)),
+            provider=str(translation.get("provider", "dashscope_mt")),
+            mode=str(translation.get("mode", "final_only")),
+            source_language=str(translation.get("source_language", "en")),
+            target_language=str(translation.get("target_language", "zh")),
+            dashscope_base_url=str(
+                translation.get(
+                    "dashscope_base_url",
+                    "https://dashscope.aliyuncs.com/compatible-mode/v1",
+                )
             ),
-            model_name=str(translation.get("model_name", "qwen2.5:7b")),
+            dashscope_model=str(translation.get("dashscope_model", "qwen-mt-lite")),
+            timeout_sec=float(translation.get("timeout_sec", 3.0)),
+            max_retries=int(translation.get("max_retries", 1)),
+            cache_size=int(translation.get("cache_size", 500)),
+            cache_ttl_sec=int(translation.get("cache_ttl_sec", 3600)),
+            show_english_in_partial=bool(
+                translation.get("show_english_in_partial", True)
+            ),
         ),
         subtitle=SubtitleConfig(
             max_visible_lines=int(subtitle.get("max_visible_lines", 3)),

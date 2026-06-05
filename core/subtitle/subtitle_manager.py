@@ -43,7 +43,7 @@ class SubtitleManager:
         line = SubtitleLine(
             id=line_id,
             source_text=text,
-            translated_text=text,
+            translated_text="" if not segment.is_final else text,
             start_time=segment.start_time,
             end_time=segment.end_time,
             status=status,
@@ -65,6 +65,26 @@ class SubtitleManager:
             line=line,
             timestamp=time.monotonic(),
         )
+
+    def apply_translation(self, line_id: str, translated_text: str) -> SubtitleEvent | None:
+        for existing in self._buffer.lines:
+            if existing.id != line_id:
+                continue
+            updated = SubtitleLine(
+                id=existing.id,
+                source_text=existing.source_text,
+                translated_text=translated_text.strip(),
+                start_time=existing.start_time,
+                end_time=existing.end_time,
+                status=SubtitleStatus.CORRECTED,
+            )
+            self._buffer.update(line_id, updated)
+            return SubtitleEvent(
+                type=SubtitleEventType.UPDATE,
+                line=updated,
+                timestamp=time.monotonic(),
+            )
+        return None
 
     def clear(self) -> SubtitleEvent:
         self._buffer.clear()

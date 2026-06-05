@@ -6,4 +6,11 @@ from typing import Protocol
 
 
 class ITranslator(Protocol):
-    async def translate(self, text: str, context: str = "") -> str: ...
+    async def translate(
+        self,
+        text: str,
+        *,
+        source_lang: str = "en",
+        target_lang: str = "zh",
+        context: str = "",
+    ) -> str: ...

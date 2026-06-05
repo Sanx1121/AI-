@@ -1,2 +1,1 @@
-# Translation — Phase 3
-"""Ollama translation services."""
+"""Cloud translation services."""

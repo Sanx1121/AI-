@@ -5,11 +5,19 @@ from core.models import SubtitleLine, SubtitleStatus
 from ui.view_models.subtitle_view_model import SubtitleViewModel
 
 
-def _line(text: str, *, status: SubtitleStatus, line_id: str = "line-1") -> SubtitleLine:
+def _line(
+    text: str,
+    *,
+    status: SubtitleStatus,
+    line_id: str = "line-1",
+    translated_text: str | None = None,
+) -> SubtitleLine:
+    if translated_text is None:
+        translated_text = "" if status == SubtitleStatus.PARTIAL else text
     return SubtitleLine(
         id=line_id,
         source_text=text,
-        translated_text=text,
+        translated_text=translated_text,
         start_time=0.0,
         end_time=1.0,
         status=status,
@@ -44,6 +52,34 @@ def test_partial_renders_gray_and_final_renders_white():
     assert "hello world" in html_final
     assert "#9EACB4" not in html_final
     assert vm._live_text == ""
+
+
+def test_corrected_replaces_last_history_line():
+    vm = SubtitleViewModel(final_color="#FFFFFF")
+
+    vm.on_subtitle_event(
+        SubtitleEvent(
+            type=SubtitleEventType.UPDATE,
+            line=_line("hello world", status=SubtitleStatus.FINAL),
+        )
+    )
+    vm.on_subtitle_event(
+        SubtitleEvent(
+            type=SubtitleEventType.UPDATE,
+            line=SubtitleLine(
+                id="line-1",
+                source_text="hello world",
+                translated_text="你好世界",
+                start_time=0.0,
+                end_time=1.0,
+                status=SubtitleStatus.CORRECTED,
+            ),
+        )
+    )
+
+    html_text = vm.get_display_html()
+    assert "你好世界" in html_text
+    assert "hello world" not in html_text
 
 
 def test_history_and_live_both_visible():

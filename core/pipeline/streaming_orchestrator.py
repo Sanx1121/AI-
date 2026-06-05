@@ -17,6 +17,7 @@ from core.events import (
 from core.interfaces.audio_source import IAudioSource
 from core.pipeline.vad_utterance_processor import VadUtteranceProcessor
 from core.subtitle.subtitle_manager import SubtitleManager
+from core.translation.translation_coordinator import TranslationCoordinator
 from infrastructure.config import AppConfig
 from services.asr.utterance_transcriber import UtteranceTranscriber
 
@@ -36,6 +37,7 @@ class StreamingPipelineOrchestrator:
         vad_processor: VadUtteranceProcessor,
         utterance_transcriber: UtteranceTranscriber,
         subtitle_manager: SubtitleManager | None = None,
+        translation_coordinator: TranslationCoordinator | None = None,
     ) -> None:
         self._on_event = on_event
         self._config = config
@@ -43,6 +45,7 @@ class StreamingPipelineOrchestrator:
         self._vad_processor = vad_processor
         self._transcriber = utterance_transcriber
         self._subtitle_manager = subtitle_manager or SubtitleManager()
+        self._translation = translation_coordinator
         self._task: asyncio.Task[None] | None = None
         self._partial_task: asyncio.Task[None] | None = None
         self._running = False
@@ -94,6 +97,9 @@ class StreamingPipelineOrchestrator:
 
         for event in self._vad_processor.flush(timestamp=time.monotonic()):
             await self._handle_utterance_event(event)
+
+        if self._translation is not None:
+            await self._translation.shutdown()
 
         clear_event = self._subtitle_manager.clear()
         await self._emit(clear_event)
@@ -160,9 +166,25 @@ class StreamingPipelineOrchestrator:
             return
 
         if segment:
-            subtitle_event = self._subtitle_manager.on_transcript(segment)
-            if subtitle_event:
-                await self._emit(subtitle_event)
+            await self._emit_subtitle(segment)
+
+    async def _emit_subtitle(self, segment) -> None:
+        subtitle_event = self._subtitle_manager.on_transcript(segment)
+        if not subtitle_event:
+            return
+
+        await self._emit(subtitle_event)
+
+        if (
+            segment.is_final
+            and self._translation is not None
+            and subtitle_event.line is not None
+        ):
+            self._translation.schedule_final_translation(
+                segment,
+                line_id=subtitle_event.line.id,
+                emit=self._emit,
+            )
 
     async def _partial_loop(self, utterance) -> None:
         interval = self._config.utterance.partial_interval_ms / 1000.0
@@ -179,9 +201,7 @@ class StreamingPipelineOrchestrator:
                         start_time=utterance.start_time,
                     )
                     if segment:
-                        subtitle_event = self._subtitle_manager.on_transcript(segment)
-                        if subtitle_event:
-                            await self._emit(subtitle_event)
+                        await self._emit_subtitle(segment)
                 except Exception:
                     logger.exception(
                         "Partial ASR failed for utterance %s",

@@ -62,7 +62,20 @@ class SubtitleViewModel(QObject):
             return
 
         line = event.line
-        text = line.translated_text.strip()
+        if line.status == SubtitleStatus.PARTIAL:
+            text = line.source_text.strip()
+        elif line.status == SubtitleStatus.CORRECTED:
+            text = line.translated_text.strip() or line.source_text.strip()
+            if self._history_lines:
+                self._history_lines[-1] = text
+            else:
+                self._commit_to_history(text)
+            self._live_text = ""
+            self.visible_lines_changed.emit()
+            return
+        else:
+            text = line.translated_text.strip() or line.source_text.strip()
+
         if not text:
             return
 

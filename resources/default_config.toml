@@ -41,8 +41,18 @@ min_partial_sec = 0.25
 ring_drop_sec = 1.0
 
 [translation]
-ollama_base_url = "http://localhost:11434"
-model_name = "qwen2.5:7b"
+enabled = true
+provider = "dashscope_mt"
+mode = "final_only"
+source_language = "en"
+target_language = "zh"
+dashscope_base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
+dashscope_model = "qwen-mt-lite"
+timeout_sec = 3.0
+max_retries = 1
+cache_size = 500
+cache_ttl_sec = 3600
+show_english_in_partial = true
 
 [subtitle]
 max_visible_lines = 4
